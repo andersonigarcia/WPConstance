@@ -1,5 +1,8 @@
-﻿using ConstanceRepo.Data;
+﻿using AutoMapper;
+using ConstanceRepo.Data;
 using ConstanceRepo.Domain;
+using ConstanceRepo.Dtos.Command;
+using ConstanceRepo.Dtos.ViewModel;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using System.Collections.Generic;
@@ -13,48 +16,61 @@ namespace WPConstance.Controllers
     public class EstadoController : ControllerBase
     {
         readonly ApplicationContext db = new ApplicationContext();
+        readonly IMapper _mapper;
 
-        [HttpGet]
-        public async Task<ActionResult<IEnumerable<Estado>>> Get()
+        public EstadoController(IMapper mapper)
         {
-            return await db.Estado.AsNoTracking().Where(c => c.Ativo).ToListAsync();
+            _mapper = mapper;
         }
 
-        [HttpGet("{id}")]
-        public async Task<ActionResult<Estado>> Get(int id)
+        [HttpGet]
+        public async Task<ActionResult<List<EstadoViewModel>>> Get()
         {
-            return await db.Estado.AsNoTracking().Where(c => c.Ativo && c.Id == id).FirstOrDefaultAsync();
+            return _mapper.Map<List<EstadoViewModel>>(await db.Estado.AsNoTracking().Where(c => c.Ativo).ToListAsync());
+        }
+
+        [HttpGet("{sigla}")]
+        public async Task<ActionResult<EstadoViewModel>> Get(string sigla)
+        {
+            return _mapper.Map<EstadoViewModel>(await db.Estado.AsNoTracking().Where(c => c.Ativo && c.Sigla.ToUpper().Equals(sigla.ToUpper())).FirstOrDefaultAsync());
         }
 
         [HttpPost]
-        public async Task<ActionResult<Estado>> Post([FromBody] Estado estado)
+        public async Task<ActionResult<EstadoViewModel>> Post([FromBody] EstadoCommand estado)
         {
-            if (!ModelState.IsValid) return BadRequest();
+            try
+            {
+                if (!ModelState.IsValid) return BadRequest();
 
-            db.Estado.Add(estado);
+                db.Estado.Add(_mapper.Map<Estado>(estado));
 
-            db.SaveChanges();
+                await db.SaveChangesAsync();
 
-            var result = db.Estado.Any(c => c.Id == estado.Id);
-
-            if (!result) return BadRequest();
-
-            return Ok(estado);
+                return Ok(estado);
+            }
+            catch (System.Exception e)
+            {
+                return BadRequest(e.Message);
+            }
         }
 
 
         [HttpPut("{id}")]
-        public async Task<ActionResult<Estado>> Put([FromBody] Estado estado)
+        public async Task<ActionResult<EstadoViewModel>> Put(string sigla, [FromBody] EstadoCommand estado)
         {
             if (!ModelState.IsValid) return BadRequest();
 
-            db.Estado.Update(estado);
+            var existe = await db.Estado.AnyAsync(c => c.Sigla.ToUpper().Equals(sigla.ToUpper()));
 
-            db.SaveChanges();
+            if (!existe) return BadRequest("Estado não encontrado na base");
 
-            var result = await db.Estado.AnyAsync(c => c.Id == estado.Id);
+            db.Estado.Update(_mapper.Map<Estado>(estado));
 
-            if (!result) return BadRequest();
+            await db.SaveChangesAsync();
+
+            var result = await db.Estado.FirstAsync(c => c.Sigla.ToUpper().Equals(sigla.ToUpper()));
+
+            if (result == null) return BadRequest();
 
             return Ok(estado);
         }
@@ -62,14 +78,21 @@ namespace WPConstance.Controllers
         [HttpDelete("{id}")]
         public async Task<ActionResult<Estado>> Delete(int id)
         {
-            var estado = await db.Estado.FirstOrDefaultAsync(c => c.Id == id);
+            try
+            {
+                var estado = await db.Estado.FirstOrDefaultAsync(c => c.Id == id);
 
-            if (estado == null) return NotFound();
+                if (estado == null) return NotFound();
 
-            db.Estado.Remove(estado);
-            db.SaveChanges();
+                db.Estado.Remove(estado);
+                await db.SaveChangesAsync();
 
-            return Ok(estado);
+                return Ok(estado);
+            }
+            catch (System.Exception e)
+            {
+                return BadRequest(e.Message);
+            }
         }
     }
 }

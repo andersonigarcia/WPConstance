@@ -1,11 +1,14 @@
-﻿using System;
+﻿using AutoMapper;
+using ConstanceRepo.Data;
+using ConstanceRepo.Domain;
+using ConstanceRepo.Dtos.Command;
+using ConstanceRepo.Dtos.ViewModel;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
-using Microsoft.AspNetCore.Mvc;
-using ConstanceRepo.Data;
-using ConstanceRepo.Domain;
-using Microsoft.EntityFrameworkCore;
+
 
 namespace WPConstance.Controllers
 {
@@ -13,10 +16,16 @@ namespace WPConstance.Controllers
     [ApiController]
     public class ClienteController : ControllerBase
     {
+        readonly IMapper _mapper;
+        public ClienteController(IMapper mapper)
+        {
+            _mapper = mapper;
+        }
+
         readonly ApplicationContext db = new ApplicationContext();
 
         [HttpGet]
-        public async Task<ActionResult<IEnumerable<Cliente>>> Get()
+        public async Task<ActionResult<IEnumerable<ClienteViewModel>>> Get()
         {
             var listaClientes = await db.Cliente.AsNoTracking()
                 .Include(c => c.Estado)
@@ -24,63 +33,81 @@ namespace WPConstance.Controllers
                 .Where(c => c.Ativo)
                 .ToListAsync();
 
-            return Ok(listaClientes);
+            return Ok(_mapper.Map<List<ClienteViewModel>>(listaClientes));
         }
 
         [HttpGet("{id}")]
         public async Task<ActionResult<Cliente>> Get(int id)
         {
-            return await db.Cliente.AsNoTracking()
-                .Include(c => c.Estado)
-                .Include(b => b.Telefone)
-                .Where(c => c.Id == id)
-                .FirstOrDefaultAsync();
+            var cliente = await db.Cliente.
+                AsNoTracking().
+                Include(c => c.Estado).
+                Include(b => b.Telefone).
+                Where(c => c.Id == id).
+                FirstOrDefaultAsync();
+
+            return Ok(_mapper.Map<ClienteViewModel>(cliente));
         }
 
         [HttpPost]
-        public async Task<ActionResult<Cliente>> Post([FromBody] Cliente cliente)
+        public async Task<ActionResult<ClienteViewModel>> Post([FromBody] ClienteCommand cliente)
         {
-            if (!ModelState.IsValid) return BadRequest();
+            try
+            {
+                if (!ModelState.IsValid) return BadRequest();
 
-            db.Cliente.Add(cliente);
+                await db.Cliente.AddAsync(_mapper.Map<Cliente>(cliente));
 
-            db.SaveChanges();
+                await db.SaveChangesAsync();
 
-            var result = await db.Cliente.AnyAsync(c => c.Id == cliente.Id);
-
-            if (!result) return BadRequest();
-
-            return Ok(cliente);
+                return Ok(cliente);
+            }
+            catch (System.Exception e)
+            {
+                return BadRequest(e.Message);
+            }
         }
 
         [HttpPut("{id}")]
-        public async Task<ActionResult<Cliente>> Put([FromBody] Cliente cliente)
+        public async Task<ActionResult<Cliente>> Put(long id, [FromBody]  ClienteCommand cliente)
         {
             if (!ModelState.IsValid) return BadRequest();
 
-            db.Cliente.Update(cliente);
+            var existe = await db.Cliente.AnyAsync(c => c.Id == id);
 
-            db.SaveChanges();
+            if (!existe) return BadRequest("Cliente não encontrado na base");
 
-            var result = await db.Cliente.AnyAsync(c => c.Id == cliente.Id);
+            db.Cliente.Update(_mapper.Map<Cliente>(cliente));
 
-            if (!result) return BadRequest();
+            await db.SaveChangesAsync();
 
-            return Ok(cliente);
+            var result = await db.Cliente.FindAsync(id);
+
+            if (result == null) return BadRequest();
+
+            return Ok(result);
         }
 
-        [HttpDelete("{id}")]        
+        [HttpDelete("{id}")]
         public async Task<ActionResult<Estado>> Delete(int id)
         {
-            var cliente = await db.Cliente.FirstOrDefaultAsync(c => c.Id == id);
+            try
+            {
+                var cliente = await db.Cliente.FindAsync(id);
 
-            if (cliente == null) return NotFound();
+                if (cliente == null) return NotFound();
 
-            db.Cliente.Remove(cliente);
+                db.Cliente.Remove(cliente);
 
-            db.SaveChanges();
+                await db.SaveChangesAsync();
 
-            return Ok(cliente);
+                return Ok(cliente);
+            }
+            catch (System.Exception e)
+            {
+                return BadRequest(e.Message);
+            }
+            
         }
     }
 }

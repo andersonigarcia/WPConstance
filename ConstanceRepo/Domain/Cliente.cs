@@ -9,8 +9,8 @@ namespace ConstanceRepo.Domain
         public string CPF { get; set; }
         public DateTime Nascimento { get; set; }
         public long EstadoId { get; set; }
-        public Estado Estado { get; set; }
-        public List<Telefone> Telefone { get; set; }
+        public virtual Estado Estado { get; set; }        
+        public virtual List<Telefone> Telefone { get; set; }
 
     }
 }

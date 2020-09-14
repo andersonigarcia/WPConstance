@@ -13,6 +13,7 @@ namespace ConstanceRepo.Data.Configurations
             builder.Property(P => P.ModifiedDate).HasDefaultValueSql("GETDATE()").ValueGeneratedOnUpdate();
             builder.Property(p => p.Nome).HasColumnType("VARCHAR(40)").IsRequired();
             builder.Property(p => p.Sigla).HasColumnType("CHAR(2)").IsRequired();
+
         }
     }
 }

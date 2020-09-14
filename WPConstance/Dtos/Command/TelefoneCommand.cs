@@ -1,11 +1,10 @@
 ﻿using ConstanceRepo.ValueObjects;
 
-namespace ConstanceRepo.Domain
+namespace WPConstance.Dtos.Command
 {
-    public class Telefone : BaseEntity
+    public class TelefoneCommand
     {
         public long Numero { get; set; }
         public TipoTelefone Tipo { get; set; }
-        public virtual Cliente Cliente { get; set; }
     }
 }

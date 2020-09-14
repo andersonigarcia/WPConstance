@@ -10,7 +10,6 @@ namespace ConstanceRepo.Data
 
         protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
         {
-
             optionsBuilder.UseSqlServer("Data Source=.;Initial Catalog=ConstanceDB;Integrated Security=true;");
         }
 
